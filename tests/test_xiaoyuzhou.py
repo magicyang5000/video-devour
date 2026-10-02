@@ -130,6 +130,22 @@ class XiaoyuzhouDownloadTests(unittest.TestCase):
             self.assertEqual(result["info"]["platform"], "xiaoyuzhou")
         self.assertTrue(events and events[-1]["status"] == "downloading")
 
+    def test_download_retries_on_network_error(self):
+        """首次网络抖动应重试而不是直接失败。"""
+        import requests as _requests
+        audio_bytes = b"\x00" * 20480
+        page = _FakeResp(_fake_page_html())
+        stream = _FakeResp(content=audio_bytes,
+                           headers={"Content-Length": str(len(audio_bytes))})
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch("requests.get",
+                            side_effect=[page, _requests.ConnectionError("boom"), stream]):
+                with mock.patch("time.sleep"):
+                    result = vd._download_xiaoyuzhou(
+                        "https://www.xiaoyuzhoufm.com/episode/6123983acc5f215c6e0b7e6d",
+                        tmp)
+            self.assertEqual(Path(result["file_path"]).read_bytes(), audio_bytes)
+
 
 @unittest.skipUnless(shutil.which("ffprobe"), "需要 ffprobe")
 class AudioOnlyProfileTests(unittest.TestCase):

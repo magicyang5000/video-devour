@@ -1067,6 +1067,7 @@ def _xyz_info_dict(raw: Dict, url: str) -> Dict:
 
 def _download_xiaoyuzhou(url: str, target_dir: str, progress_hook=None) -> Dict:
     """下载小宇宙单集音频（m4a），纯音频交由流水线 ASR 直连处理。"""
+    import time
     import requests
 
     raw = _xyz_episode_info(url)
@@ -1075,23 +1076,35 @@ def _download_xiaoyuzhou(url: str, target_dir: str, progress_hook=None) -> Dict:
     target.mkdir(parents=True, exist_ok=True)
     out_path = target / f"{eid}.m4a"
 
-    with requests.get(raw["audio"], stream=True, timeout=(15, 60),
-                      headers={"User-Agent": _BROWSER_UA}) as r:
-        r.raise_for_status()
-        total = int(r.headers.get("Content-Length") or 0)
-        done = 0
-        with open(out_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=1 << 20):
-                if not chunk:
-                    continue
-                f.write(chunk)
-                done += len(chunk)
-                if progress_hook and total:
-                    progress_hook({
-                        "status": "downloading",
-                        "downloaded_bytes": done,
-                        "total_bytes": total,
-                    })
+    # 音频为单文件直链（可 Range 续传），网络抖动时整体重试 3 次
+    last_error = None
+    for attempt in range(3):
+        try:
+            with requests.get(raw["audio"], stream=True, timeout=(15, 60),
+                              headers={"User-Agent": _BROWSER_UA}) as r:
+                r.raise_for_status()
+                total = int(r.headers.get("Content-Length") or 0)
+                done = 0
+                with open(out_path, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=1 << 20):
+                        if not chunk:
+                            continue
+                        f.write(chunk)
+                        done += len(chunk)
+                        if progress_hook and total:
+                            progress_hook({
+                                "status": "downloading",
+                                "downloaded_bytes": done,
+                                "total_bytes": total,
+                            })
+            break
+        except Exception as e:
+            last_error = e
+            logging.warning(f"小宇宙音频下载第 {attempt + 1} 次尝试失败: {e}")
+            if attempt < 2:
+                time.sleep(2 * (attempt + 1))
+    else:
+        raise ValueError(f"小宇宙音频下载失败（已重试 3 次）: {last_error}")
 
     if out_path.stat().st_size < 10240:
         raise ValueError("小宇宙音频下载异常：文件过小")
