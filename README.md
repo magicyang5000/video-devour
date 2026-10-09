@@ -69,6 +69,7 @@
 - **X（Twitter）**：支持 `x.com` / `twitter.com` 推文视频（`/{user}/status/{id}`、`/i/status/{id}` 等自动归一化）。**下载需要登录态 Cookie**（设置页「X cookies」或一键读取浏览器 Cookie，需含 `auth_token`）；X 不支持关键词搜索，只能粘贴推文链接。
 - **微信视频号**：支持 `weixin.qq.com/sph/...` 分享链接。在设置页填入腾讯元宝 Cookie 后走**直连解析**（元宝解析 → 视频号 feed 接口 → 本地 ISAAC64 解密，无第三方依赖）；也可选配自建解析服务（`WECHAT_RESOLVER_URL`）或使用本地捕获工具（[ltaoo/wx_channels_download](https://github.com/ltaoo/wx_channels_download)）下载后上传处理。
 - 由 `yt-dlp` 驱动，含 B站风控退避重试与 YouTube cookies 支持（`YTDLP_COOKIES_FILE`）。
+- **代理环境说明**：为访问 YouTube 常开系统代理的用户，若代理处于**全局模式**（global），B站/抖音等国内平台的 CDN 长连接会被代理出口 IP 限流掐断，长视频反复出现「下载中断、重试 5 次后放弃」或 `Read timed out`。应用对 B站/抖音/视频号已自动**强制直连**（yt-dlp `proxy=""`，不受系统代理模式影响）；YouTube/X 仍遵循环境代理。如仍异常，请将代理切换为**规则模式**（国内直连、境外走代理）。
 
 ### 🎓 学习增强
 - **附加产物可选**：上传/链接处理时可勾选「完成后生成」——思维导图 / 知识图谱 / 学习卡片，勾选才生成（默认不勾，报告完成即结束，最快出结果）；报告页也保留手动生成按钮。
